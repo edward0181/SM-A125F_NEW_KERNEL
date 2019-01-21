@@ -371,33 +371,12 @@ KBUILD_HOSTLDLIBS   := $(HOST_LFS_LIBS) $(HOSTLDLIBS)
 
 # Make variables (CC, etc...)
 CPP		= $(CC) -E
-ifneq ($(LLVM),)
-CC		= /home/edward/toolchain/proton-clang/bin/clang
-CXX             = /home/edward/toolchain/proton-clang/bin/clang++
-LD		= /home/edward/toolchain/proton-clang/bin/ld.lld
-LLD             = /home/edward/toolchain/proton-clang/bin/lld
-AR		= /home/edward/toolchain/proton-clang/bin/llvm-ar
-NM		= /home/edward/toolchain/proton-clang/bin/llvm-nm
-OBJCOPY		= /home/edward/toolchain/proton-clang/bin/llvm-objcopy
-OBJDUMP		= /home/edward/toolchain/proton-clang/bin/llvm-objdump
-READELF		= /home/edward/toolchain/proton-clang/bin/llvm-readelf
-STRIP		= /home/edward/toolchain/proton-clang/bin/llvm-strip
-AS              = /home/edward/toolchain/proton-clang/bin/llvm-as
-OBJSIZE         = /home/edward/toolchain/proton-clang/bin/llvm-size
-else
-AS		= /home/edward/toolchain/proton-clang/bin/llvm-as
-LD		= /home/edward/toolchain/proton-clang/bin/ld.lld
-LLD             = /home/edward/toolchain/proton-clang/bin/lld
-CC		= /home/edward/toolchain/proton-clang/bin/clang
-CXX             = /home/edward/toolchain/proton-clang/bin/clang++
-AR		= /home/edward/toolchain/proton-clang/bin/llvm-ar
-NM		= /home/edward/toolchain/proton-clang/bin/llvm-nm
-STRIP		= /home/edward/toolchain/proton-clang/bin/llvm-strip
-OBJCOPY		= /home/edward/toolchain/proton-clang/bin/llvm-objcopy
-OBJDUMP		= /home/edward/toolchain/proton-clang/bin/llvm-objdump
-OBJSIZE         = /home/edward/toolchain/proton-clang/bin/llvm-size
-READELF		= /home/edward/toolchain/proton-clang/bin/llvm-readelf
-endif
+AR		= $(CROSS_COMPILE)ar
+NM		= $(CROSS_COMPILE)nm
+STRIP		= $(CROSS_COMPILE)strip
+OBJCOPY		= $(CROSS_COMPILE)objcopy
+OBJDUMP		= $(CROSS_COMPILE)objdump
+OBJSIZE		= $(CROSS_COMPILE)size
 LEX		= flex
 YACC		= bison
 AWK		= awk
@@ -454,7 +433,7 @@ GCC_PLUGINS_CFLAGS :=
 CLANG_FLAGS :=
 
 export ARCH SRCARCH CONFIG_SHELL HOSTCC KBUILD_HOSTCFLAGS CROSS_COMPILE AS LD CC
-export CPP AR NM STRIP OBJCOPY OBJDUMP KBUILD_HOSTLDFLAGS KBUILD_HOSTLDLIBS
+export CPP AR NM STRIP OBJCOPY OBJDUMP OBJSIZE KBUILD_HOSTLDFLAGS KBUILD_HOSTLDLIBS
 export MAKE LEX YACC AWK GENKSYMS INSTALLKERNEL PERL PYTHON PYTHON2 PYTHON3 UTS_MACHINE
 export HOSTCXX KBUILD_HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
 

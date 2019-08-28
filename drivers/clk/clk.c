@@ -44,15 +44,16 @@ static HLIST_HEAD(clk_root_list);
 static HLIST_HEAD(clk_orphan_list);
 static LIST_HEAD(clk_notifier_list);
 
-/*
- * clk_rate_change_list is used during clk_core_set_rate_nolock() calls to
- * handle vdd_class vote tracking.  core->rate_change_node is added to
- * clk_rate_change_list when core->new_rate requires a different voltage level
- * (core->new_vdd_class_vote) than core->vdd_class_vote.  Elements are removed
- * from the list after unvoting core->vdd_class_vote immediately before
- * returning from clk_core_set_rate_nolock().
- */
-static LIST_HEAD(clk_rate_change_list);
+static struct hlist_head *all_lists[] = {
+	&clk_root_list,
+	&clk_orphan_list,
+	NULL,
+};
+
+static struct hlist_head *orphan_list[] = {
+	&clk_orphan_list,
+	NULL,
+};
 
 /***    private data structures    ***/
 
@@ -3231,17 +3232,6 @@ static int inited = 0;
 static DEFINE_MUTEX(clk_debug_lock);
 static HLIST_HEAD(clk_debug_list);
 
-static struct hlist_head *all_lists[] = {
-	&clk_root_list,
-	&clk_orphan_list,
-	NULL,
-};
-
-static struct hlist_head *orphan_list[] = {
-	&clk_orphan_list,
-	NULL,
-};
-
 static void clk_summary_show_one(struct seq_file *s, struct clk_core *c,
 				 int level)
 {
@@ -3997,6 +3987,34 @@ static const struct clk_ops clk_nodrv_ops = {
 	.set_parent	= clk_nodrv_set_parent,
 };
 
+static void clk_core_evict_parent_cache_subtree(struct clk_core *root,
+						struct clk_core *target)
+{
+	int i;
+	struct clk_core *child;
+
+	for (i = 0; i < root->num_parents; i++)
+		if (root->parents[i] == target)
+			root->parents[i] = NULL;
+
+	hlist_for_each_entry(child, &root->children, child_node)
+		clk_core_evict_parent_cache_subtree(child, target);
+}
+
+/* Remove this clk from all parent caches */
+static void clk_core_evict_parent_cache(struct clk_core *core)
+{
+	struct hlist_head **lists;
+	struct clk_core *root;
+
+	lockdep_assert_held(&prepare_lock);
+
+	for (lists = all_lists; *lists; lists++)
+		hlist_for_each_entry(root, *lists, child_node)
+			clk_core_evict_parent_cache_subtree(root, core);
+
+}
+
 /**
  * clk_unregister - unregister a currently registered clock
  * @clk: clock to unregister
@@ -4034,6 +4052,8 @@ void clk_unregister(struct clk *clk)
 					  child_node)
 			clk_core_set_parent_nolock(child, NULL);
 	}
+
+	clk_core_evict_parent_cache(clk->core);
 
 	hlist_del_init(&clk->core->child_node);
 

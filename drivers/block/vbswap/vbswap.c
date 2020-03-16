@@ -61,14 +61,10 @@ static int vbswap_bvec_read(struct bio_vec *bvec,
 	page = bvec->bv_page;
 
 	user_mem = kmap_atomic(page);
-	if (index == 0 && swap_header_page) {
+	if (index == 0) {
 		swap_header_page_mem = kmap_atomic(swap_header_page);
 		memcpy(user_mem + bvec->bv_offset, swap_header_page_mem, bvec->bv_len);
 		kunmap_atomic(swap_header_page_mem);
-
-		// It'll be read one-time only
-		__free_page(swap_header_page);
-		swap_header_page = NULL;
 	} else {
 		// Do not allow memory dumps
 		memset(user_mem + bvec->bv_offset, 0, bvec->bv_len);

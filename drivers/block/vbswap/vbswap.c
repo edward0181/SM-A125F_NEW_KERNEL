@@ -196,10 +196,23 @@ out_error:
 static blk_qc_t vbswap_make_request(struct request_queue *queue,
 				    struct bio *bio)
 {
-	if (likely(bio->bi_iter.bi_sector >> SECTORS_PER_PAGE_SHIFT))
+	if (likely(bio->bi_iter.bi_sector >> SECTORS_PER_PAGE_SHIFT)) {
 		bio_io_error(bio);
-	else
-		__vbswap_make_request(bio, bio_data_dir(bio));
+		return BLK_QC_T_NONE;
+	}
+
+	if (!vbswap_valid_io_request(bio)) {
+		pr_err("%s %d: invalid io request. "
+		       "(bio->bi_iter.bi_sector, bio->bi_iter.bi_size,"
+		       "vbswap_disksize) = "
+		       "(%llu, %d, %llu)\n",
+		       __func__, __LINE__,
+		       (unsigned long long)bio->bi_iter.bi_sector,
+		       bio->bi_iter.bi_size, vbswap_disksize);
+
+		bio_io_error(bio);
+		return BLK_QC_T_NONE;
+	}
 
 	return BLK_QC_T_NONE;
 }

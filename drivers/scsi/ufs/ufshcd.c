@@ -8754,14 +8754,6 @@ int ufshcd_shutdown(struct ufs_hba *hba)
 
 	pm_runtime_get_sync(hba->dev);
 
-	ufshcd_device_quiesce(hba);
-
-	/*
-	 * Remove Unregister RPMB
-	 * device during shutdown and UFSHCD removal
-	 */
-	ufs_mtk_rpmb_remove(hba);
-
 	ret = ufshcd_suspend(hba, UFS_SHUTDOWN_PM);
 out:
 	if (ret)

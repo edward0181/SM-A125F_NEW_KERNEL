@@ -1582,15 +1582,18 @@ static void android_work(struct work_struct *data)
 #endif
 	}
 
-	if (status[2]) {
-		kobject_uevent_env(&android_device->kobj,
-					KOBJ_CHANGE, disconnected);
-		pr_info("%s: sent uevent %s\n", __func__, disconnected[0]);
-		uevent_sent = true;
-#ifdef CONFIG_USB_NOTIFY_PROC_LOG
-		store_usblog_notify(NOTIFY_USBSTATE, (void *)disconnected[0], NULL);
-#endif
-	}
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
+	purge_configs_funcs(gi);
+	composite_dev_cleanup(cdev);
+	usb_ep_autoconfig_reset(cdev->gadget);
+	spin_lock_irqsave(&gi->spinlock, flags);
+	cdev->gadget = NULL;
+	cdev->deactivations = 0;
+	gadget->deactivated = false;
+	set_gadget_data(gadget, NULL);
+	spin_unlock_irqrestore(&gi->spinlock, flags);
+}
 
 	if (!uevent_sent) {
 		pr_info("usb: %s: did not send uevent (%d %d %pK)\n", __func__,

@@ -1,14 +1,5 @@
 
-<<<<<<< HEAD
-export CROSS_COMPILE=$(pwd)/toolchain/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-androidkernel-
-export CC=$(pwd)/toolchain/clang/host/linux-x86/clang-r353983c/bin/clang
-export CLANG_TRIPLE=aarch64-linux-gnu-
-export ARCH=arm64
-export ANDROID_MAJOR_VERSION=r
-=======
-#Set time zone to Moscow
-sudo ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime
->>>>>>> 5035d5d8b... build: Update build script
+
 
 # Colors
 green='\033[01;32m'
@@ -16,10 +7,6 @@ red='\033[01;31m'
 blink_red='\033[05;31m'
 restore='\033[0m'
 
-<<<<<<< HEAD
-make -C $(pwd) O=$(pwd)/out KCFLAGS=-w CONFIG_SECTION_MISMATCH_WARN_ONLY=y a12_defconfig
-make -C $(pwd) O=$(pwd)/out KCFLAGS=-w CONFIG_SECTION_MISMATCH_WARN_ONLY=y -j16
-=======
 echo -e "${green}"
 echo "–––––––––––––––––––––"
 echo "Cloning dependencies:"
@@ -33,15 +20,14 @@ echo "––––"
 echo "Done"
 echo "––––"
 echo -e "${restore}"
->>>>>>> 5035d5d8b... build: Update build script
 
 IMAGE=$(pwd)/out/arch/arm64/boot/Image.gz
 START=$(date +"%s")
 KERNEL_DIR=$(pwd)
 PATH="${HOME}/toolchain/proton-clang/bin:${HOME}/toolchain/gcc/bin:${HOME}/toolchain/gcc32/bin:${PATH}"
 VERSION="$(cat arch/arm64/configs/a12_00_defconfig | grep "CONFIG_LOCALVERSION\=" | sed -r 's/.*"(.+)".*/\1/' | sed 's/^.//')"
-export KBUILD_BUILD_HOST=Revers
-export KBUILD_BUILD_USER="Sezam4ik"
+export KBUILD_BUILD_HOST=Edward
+export KBUILD_BUILD_USER="Edward"
 
 # Compile plox
 function compile() {

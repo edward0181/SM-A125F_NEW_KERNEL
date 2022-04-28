@@ -1,5 +1,6 @@
 
-
+#Set time zone to Moscow
+sudo ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime
 
 # Colors
 green='\033[01;32m'
@@ -26,8 +27,8 @@ START=$(date +"%s")
 KERNEL_DIR=$(pwd)
 PATH="${HOME}/toolchain/proton-clang/bin:${HOME}/toolchain/gcc/bin:${HOME}/toolchain/gcc32/bin:${PATH}"
 VERSION="$(cat arch/arm64/configs/a12_00_defconfig | grep "CONFIG_LOCALVERSION\=" | sed -r 's/.*"(.+)".*/\1/' | sed 's/^.//')"
-export KBUILD_BUILD_HOST=Edward
-export KBUILD_BUILD_USER="Edward"
+export KBUILD_BUILD_HOST=Revers
+export KBUILD_BUILD_USER="Sezam4ik"
 
 # Compile plox
 function compile() {

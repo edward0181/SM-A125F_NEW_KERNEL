@@ -320,7 +320,8 @@ include scripts/subarch.include
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 ARCH            ?= arm64
-CROSS_COMPILE   ?= $(srctree)/toolchain/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-androidkernel-
+CROSS_COMPILE   ?= $(CONFIG_CROSS_COMPILE:"%"=%)
+CROSS_COMPILE   = /home/edward/toolchain/proton-clang/bin/aarch64-linux-gnu-
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -369,16 +370,34 @@ KBUILD_HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS) $(HOSTLDFLAGS)
 KBUILD_HOSTLDLIBS   := $(HOST_LFS_LIBS) $(HOSTLDLIBS)
 
 # Make variables (CC, etc...)
-AS		= $(CROSS_COMPILE)as
-LD		= $(CROSS_COMPILE)ld
-CC		= $(CROSS_COMPILE)gcc
-CC		= $(srctree)/toolchain/clang/host/linux-x86/clang-r383902/bin/clang
 CPP		= $(CC) -E
-AR		= $(CROSS_COMPILE)ar
-NM		= $(CROSS_COMPILE)nm
-STRIP		= $(CROSS_COMPILE)strip
-OBJCOPY		= $(CROSS_COMPILE)objcopy
-OBJDUMP		= $(CROSS_COMPILE)objdump
+ifneq ($(LLVM),)
+CC		= /home/edward/toolchain/proton-clang/bin/clang
+CXX             = /home/edward/toolchain/proton-clang/bin/clang++
+LD		= /home/edward/toolchain/proton-clang/bin/ld.lld
+LLD             = /home/edward/toolchain/proton-clang/bin/lld
+AR		= /home/edward/toolchain/proton-clang/bin/llvm-ar
+NM		= /home/edward/toolchain/proton-clang/bin/llvm-nm
+OBJCOPY		= /home/edward/toolchain/proton-clang/bin/llvm-objcopy
+OBJDUMP		= /home/edward/toolchain/proton-clang/bin/llvm-objdump
+READELF		= /home/edward/toolchain/proton-clang/bin/llvm-readelf
+STRIP		= /home/edward/toolchain/proton-clang/bin/llvm-strip
+AS              = /home/edward/toolchain/proton-clang/bin/llvm-as
+OBJSIZE         = /home/edward/toolchain/proton-clang/bin/llvm-size
+else
+AS		= /home/edward/toolchain/proton-clang/bin/llvm-as
+LD		= /home/edward/toolchain/proton-clang/bin/ld.lld
+LLD             = /home/edward/toolchain/proton-clang/bin/lld
+CC		= /home/edward/toolchain/proton-clang/bin/clang
+CXX             = /home/edward/toolchain/proton-clang/bin/clang++
+AR		= /home/edward/toolchain/proton-clang/bin/llvm-ar
+NM		= /home/edward/toolchain/proton-clang/bin/llvm-nm
+STRIP		= /home/edward/toolchain/proton-clang/bin/llvm-strip
+OBJCOPY		= /home/edward/toolchain/proton-clang/bin/llvm-objcopy
+OBJDUMP		= /home/edward/toolchain/proton-clang/bin/llvm-objdump
+OBJSIZE         = /home/edward/toolchain/proton-clang/bin/llvm-size
+READELF		= /home/edward/toolchain/proton-clang/bin/llvm-readelf
+endif
 LEX		= flex
 YACC		= bison
 AWK		= awk
@@ -485,7 +504,8 @@ endif
 
 ifeq ($(cc-name),clang)
 ifneq ($(CROSS_COMPILE),)
-CLANG_TRIPLE	?= $(srctree)/toolchain/clang/host/linux-x86/clang-r383902/bin/aarch64-linux-gnu-
+#CLANG_TRIPLE	?= $(CROSS_COMPILE)
+CLANG_TRIPLE=/home/edward/toolchain/proton-clang/bin/aarch64-linux-gnu-
 CLANG_FLAGS	+= --target=$(notdir $(CLANG_TRIPLE:%-=%))
 ifeq ($(shell $(srctree)/scripts/clang-android.sh $(CC) $(CLANG_FLAGS)), y)
 $(error "Clang with Android --target detected. Did you specify CLANG_TRIPLE?")
@@ -616,8 +636,8 @@ endif
 ifdef CONFIG_LTO_CLANG
 # use llvm-ar for building symbol tables from IR files, and llvm-nm instead
 # of objdump for processing symbol versions and exports
-LLVM_AR		:= llvm-ar
-LLVM_NM		:= llvm-nm
+LLVM_AR		:= /home/edward/toolchain/proton-clang/bin/llvm-ar
+LLVM_NM		:= /home/edward/toolchain/proton-clang/bin/llvm-nm
 export LLVM_AR LLVM_NM
 endif
 

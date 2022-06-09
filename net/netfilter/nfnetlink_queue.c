@@ -566,8 +566,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		goto nla_put_failure;
 
 	if (indev && entskb->dev &&
-	    skb_mac_header_was_set(entskb) &&
-	    skb_mac_header_len(entskb) != 0) {
+	    entskb->mac_header != entskb->network_header) {
 		struct nfqnl_msg_packet_hw phw;
 		int len;
 
@@ -686,7 +685,7 @@ __nfqnl_enqueue_packet(struct net *net, struct nfqnl_instance *queue,
 	*packet_id_ptr = htonl(entry->id);
 
 	/* nfnetlink_unicast will either free the nskb or add it to a socket */
-	err = nfnetlink_unicast(nskb, net, queue->peer_portid);
+	err = nfnetlink_unicast(nskb, net, queue->peer_portid, MSG_DONTWAIT);
 	if (err < 0) {
 		if (queue->flags & NFQA_CFG_F_FAIL_OPEN) {
 			failopen = 1;
@@ -716,15 +715,9 @@ static struct nf_queue_entry *
 nf_queue_entry_dup(struct nf_queue_entry *e)
 {
 	struct nf_queue_entry *entry = kmemdup(e, e->size, GFP_ATOMIC);
-
-	if (!entry)
-		return NULL;
-
-	if (nf_queue_entry_get_refs(entry))
-		return entry;
-
-	kfree(entry);
-	return NULL;
+	if (entry)
+		nf_queue_entry_get_refs(entry);
+	return entry;
 }
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)

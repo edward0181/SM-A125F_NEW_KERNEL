@@ -169,11 +169,9 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 		 * without appearing to create any others.
 		 */
 		if (likely(!tp->repair)) {
-			u32 seq = tcptw->tw_snd_nxt + 65535 + 2;
-
-			if (!seq)
-				seq = 1;
-			WRITE_ONCE(tp->write_seq, seq);
+			tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
+			if (tp->write_seq == 0)
+				tp->write_seq = 1;
 			tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
 			tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
 		}
@@ -260,7 +258,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		tp->rx_opt.ts_recent	   = 0;
 		tp->rx_opt.ts_recent_stamp = 0;
 		if (likely(!tp->repair))
-			WRITE_ONCE(tp->write_seq, 0);
+			tp->write_seq	   = 0;
 	}
 
 	inet->inet_dport = usin->sin_port;
@@ -298,11 +296,10 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	if (likely(!tp->repair)) {
 		if (!tp->write_seq)
-			WRITE_ONCE(tp->write_seq,
-				   secure_tcp_seq(inet->inet_saddr,
-						  inet->inet_daddr,
-						  inet->inet_sport,
-						  usin->sin_port));
+			tp->write_seq = secure_tcp_seq(inet->inet_saddr,
+						       inet->inet_daddr,
+						       inet->inet_sport,
+						       usin->sin_port);
 		tp->tsoffset = secure_tcp_ts_off(sock_net(sk),
 						 inet->inet_saddr,
 						 inet->inet_daddr);
@@ -348,7 +345,7 @@ void tcp_v4_mtu_reduced(struct sock *sk)
 
 	if ((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))
 		return;
-	mtu = READ_ONCE(tcp_sk(sk)->mtu_info);
+	mtu = tcp_sk(sk)->mtu_info;
 	dst = inet_csk_update_pmtu(sk, mtu);
 	if (!dst)
 		return;
@@ -516,7 +513,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 			if (sk->sk_state == TCP_LISTEN)
 				goto out;
 
-			WRITE_ONCE(tp->mtu_info, info);
+			tp->mtu_info = info;
 			if (!sock_owned_by_user(sk)) {
 				tcp_v4_mtu_reduced(sk);
 			} else {
@@ -1068,18 +1065,9 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 
 	key = tcp_md5_do_lookup_exact(sk, addr, family, prefixlen);
 	if (key) {
-		/* Pre-existing entry - just update that one.
-		 * Note that the key might be used concurrently.
-		 */
+		/* Pre-existing entry - just update that one. */
 		memcpy(key->key, newkey, newkeylen);
-
-		/* Pairs with READ_ONCE() in tcp_md5_hash_key().
-		 * Also note that a reader could catch new key->keylen value
-		 * but old key->key[], this is the reason we use __GFP_ZERO
-		 * at sock_kmalloc() time below these lines.
-		 */
-		WRITE_ONCE(key->keylen, newkeylen);
-
+		key->keylen = newkeylen;
 		return 0;
 	}
 
@@ -1095,7 +1083,7 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 		rcu_assign_pointer(tp->md5sig_info, md5sig);
 	}
 
-	key = sock_kmalloc(sk, sizeof(*key), gfp | __GFP_ZERO);
+	key = sock_kmalloc(sk, sizeof(*key), gfp);
 	if (!key)
 		return -ENOMEM;
 	if (!tcp_alloc_md5sig_pool()) {
@@ -1374,7 +1362,7 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.syn_ack_timeout =	tcp_syn_ack_timeout,
 };
 
-const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
+static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.mss_clamp	=	TCP_MSS_DEFAULT,
 #ifdef CONFIG_TCP_MD5SIG
 	.req_md5_lookup	=	tcp_v4_md5_lookup,
@@ -1417,7 +1405,6 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				  bool *own_req)
 {
 	struct inet_request_sock *ireq;
-	bool found_dup_sk = false;
 	struct inet_sock *newinet;
 	struct tcp_sock *newtp;
 	struct sock *newsk;
@@ -1488,22 +1475,12 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 
 	if (__inet_inherit_port(sk, newsk) < 0)
 		goto put_and_exit;
-	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash),
-				       &found_dup_sk);
+	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
 	if (likely(*own_req)) {
 		tcp_move_syn(newtp, req);
 		ireq->ireq_opt = NULL;
 	} else {
 		newinet->inet_opt = NULL;
-
-		if (!req_unhash && found_dup_sk) {
-			/* This code path should only be executed in the
-			 * syncookie case only
-			 */
-			bh_unlock_sock(newsk);
-			sock_put(newsk);
-			newsk = NULL;
-		}
 	}
 	return newsk;
 
@@ -2196,7 +2173,6 @@ static void *tcp_get_idx(struct seq_file *seq, loff_t pos)
 static void *tcp_seek_last_pos(struct seq_file *seq)
 {
 	struct tcp_iter_state *st = seq->private;
-	int bucket = st->bucket;
 	int offset = st->offset;
 	int orig_num = st->num;
 	void *rc = NULL;
@@ -2207,7 +2183,7 @@ static void *tcp_seek_last_pos(struct seq_file *seq)
 			break;
 		st->state = TCP_SEQ_STATE_LISTENING;
 		rc = listening_get_next(seq, NULL);
-		while (offset-- && rc && bucket == st->bucket)
+		while (offset-- && rc)
 			rc = listening_get_next(seq, rc);
 		if (rc)
 			break;
@@ -2218,7 +2194,7 @@ static void *tcp_seek_last_pos(struct seq_file *seq)
 		if (st->bucket > tcp_hashinfo.ehash_mask)
 			break;
 		rc = established_get_first(seq);
-		while (offset-- && rc && bucket == st->bucket)
+		while (offset-- && rc)
 			rc = established_get_next(seq, rc);
 	}
 
@@ -2363,12 +2339,12 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 		 * we might find a transient negative value.
 		 */
 		rx_queue = max_t(int, READ_ONCE(tp->rcv_nxt) -
-				      READ_ONCE(tp->copied_seq), 0);
+				      tp->copied_seq, 0);
 
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X %02X %08X:%08X %02X:%08lX "
 			"%08X %5u %8d %lu %d %pK %lu %lu %u %u %d",
 		i, src, srcp, dest, destp, state,
-		READ_ONCE(tp->write_seq) - tp->snd_una,
+		tp->write_seq - tp->snd_una,
 		rx_queue,
 		timer_active,
 		jiffies_delta_to_clock_t(timer_expires - jiffies),

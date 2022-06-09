@@ -2363,19 +2363,6 @@ static inline void ext4_fname_from_fscrypt_name(struct ext4_filename *dst,
 	dst->crypto_buf = src->crypto_buf;
 }
 
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-static inline void ext4_fname_from_fscrypt_name(struct ext4_filename *dst,
-						const struct fscrypt_name *src)
-{
-	memset(dst, 0, sizeof(*dst));
-
-	dst->usr_fname = src->usr_fname;
-	dst->disk_name = src->disk_name;
-	dst->hinfo.hash = src->hash;
-	dst->hinfo.minor_hash = src->minor_hash;
-	dst->crypto_buf = src->crypto_buf;
-}
-
 static inline int ext4_fname_setup_filename(struct inode *dir,
 					    const struct qstr *iname,
 					    int lookup,
@@ -2389,6 +2376,10 @@ static inline int ext4_fname_setup_filename(struct inode *dir,
 		return err;
 
 	ext4_fname_from_fscrypt_name(fname, &name);
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, iname, &fname->cf_name);
+#endif
 	return 0;
 }
 
@@ -2404,6 +2395,10 @@ static inline int ext4_fname_prepare_lookup(struct inode *dir,
 		return err;
 
 	ext4_fname_from_fscrypt_name(fname, &name);
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, &dentry->d_name, &fname->cf_name);
+#endif
 	return 0;
 }
 
@@ -2423,7 +2418,7 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname)
 	fname->cf_name.name = NULL;
 #endif
 }
-#else /* !CONFIG_EXT4_FS_ENCRYPTION */
+#else /* !CONFIG_FS_ENCRYPTION */
 static inline int ext4_fname_setup_filename(struct inode *dir,
 					    const struct qstr *iname,
 					    int lookup,
@@ -2447,8 +2442,14 @@ static inline int ext4_fname_prepare_lookup(struct inode *dir,
 	return ext4_fname_setup_filename(dir, &dentry->d_name, 1, fname);
 }
 
-static inline void ext4_fname_free_filename(struct ext4_filename *fname) { }
-#endif /* !CONFIG_EXT4_FS_ENCRYPTION */
+static inline void ext4_fname_free_filename(struct ext4_filename *fname)
+{
+#ifdef CONFIG_UNICODE
+	kfree(fname->cf_name.name);
+	fname->cf_name.name = NULL;
+#endif
+}
+#endif /* !CONFIG_FS_ENCRYPTION */
 
 /* dir.c */
 extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
@@ -2475,8 +2476,7 @@ void ext4_insert_dentry(struct inode *inode,
 			struct ext4_filename *fname);
 static inline void ext4_update_dx_flag(struct inode *inode)
 {
-	if (!ext4_has_feature_dir_index(inode->i_sb) &&
-	    ext4_test_inode_flag(inode, EXT4_INODE_INDEX)) {
+	if (!ext4_has_feature_dir_index(inode->i_sb)) {
 		/* ext4_iget() should have caught this... */
 		WARN_ON_ONCE(ext4_has_feature_metadata_csum(inode->i_sb));
 		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
@@ -3244,9 +3244,9 @@ extern void ext4_release_system_zone(struct super_block *sb);
 extern int ext4_setup_system_zone(struct super_block *sb);
 extern int __init ext4_init_system_zone(void);
 extern void ext4_exit_system_zone(void);
-extern int ext4_inode_block_valid(struct inode *inode,
-				  ext4_fsblk_t start_blk,
-				  unsigned int count);
+extern int ext4_data_block_valid(struct ext4_sb_info *sbi,
+				 ext4_fsblk_t start_blk,
+				 unsigned int count);
 extern int ext4_check_blockref(const char *, unsigned int,
 			       struct inode *, __le32 *, unsigned int);
 

@@ -1280,9 +1280,6 @@ static void f2fs_put_super(struct super_block *sb)
 	int i;
 	bool dropped;
 
-	/* unregister procfs/sysfs entries in advance to avoid race case */
-	f2fs_unregister_sysfs(sbi);
-
 	f2fs_quota_off_umount(sb);
 
 	/* prevent remaining shrinker jobs */
@@ -1352,6 +1349,8 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_destroy_post_read_wq(sbi);
 
 	kvfree(sbi->ckpt);
+
+	f2fs_unregister_sysfs(sbi);
 
 	sb->s_fs_info = NULL;
 	if (sbi->s_chksum_driver)
@@ -1448,8 +1447,7 @@ static int f2fs_statfs_project(struct super_block *sb,
 		limit >>= sb->s_blocksize_bits;
 
 	if (limit && buf->f_blocks > limit) {
-		curblock = (dquot->dq_dqb.dqb_curspace +
-			    dquot->dq_dqb.dqb_rsvspace) >> sb->s_blocksize_bits;
+		curblock = dquot->dq_dqb.dqb_curspace >> sb->s_blocksize_bits;
 		buf->f_blocks = limit;
 		buf->f_bfree = buf->f_bavail =
 			(buf->f_blocks > curblock) ?
@@ -4210,5 +4208,4 @@ module_exit(exit_f2fs_fs)
 MODULE_AUTHOR("Samsung Electronics's Praesto Team");
 MODULE_DESCRIPTION("Flash Friendly File System");
 MODULE_LICENSE("GPL");
-MODULE_SOFTDEP("pre: crc32");
 

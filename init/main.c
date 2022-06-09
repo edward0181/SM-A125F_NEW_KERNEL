@@ -699,6 +699,7 @@ asmlinkage __visible void __init start_kernel(void)
 	boot_init_stack_canary();
 
 	time_init();
+	printk_safe_init();
 	perf_event_init();
 	profile_init();
 	call_function_init();
@@ -833,7 +834,7 @@ static int __init initcall_blacklist(char *str)
 		}
 	} while (str_entry);
 
-	return 1;
+	return 0;
 }
 
 static bool __init_or_module initcall_blacklisted(initcall_t fn)
@@ -1101,9 +1102,7 @@ static noinline void __init kernel_init_freeable(void);
 bool rodata_enabled __ro_after_init = true;
 static int __init set_debug_rodata(char *str)
 {
-	if (strtobool(str, &rodata_enabled))
-		pr_warn("Invalid option string for rodata: '%s'\n", str);
-	return 1;
+	return strtobool(str, &rodata_enabled);
 }
 __setup("rodata=", set_debug_rodata);
 #endif
@@ -1212,7 +1211,7 @@ static noinline void __init kernel_init_freeable(void)
 	 */
 	set_mems_allowed(node_states[N_MEMORY]);
 
-	cad_pid = get_pid(task_pid(current));
+	cad_pid = task_pid(current);
 
 	smp_prepare_cpus(setup_max_cpus);
 
